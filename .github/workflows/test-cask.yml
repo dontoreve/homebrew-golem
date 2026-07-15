@@ -29,14 +29,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Homebrew rejects installing a cask from a bare file path, so tap the
+      # checked-out repo as a local tap (dontoreve/golem) and install by token.
+      - name: Tap this repo locally
+        run: brew tap dontoreve/golem "$GITHUB_WORKSPACE"
+
       - name: Style + audit (informative)
         continue-on-error: true
         run: |
-          brew style "$GITHUB_WORKSPACE/Casks/golem-type.rb"
-          brew audit --cask --online "$GITHUB_WORKSPACE/Casks/golem-type.rb"
+          brew style dontoreve/golem/golem-type || true
+          brew audit --cask --online dontoreve/golem/golem-type || true
 
       - name: Install the cask (downloads + mounts the DMG, copies the app)
-        run: brew install --cask --no-quarantine "$GITHUB_WORKSPACE/Casks/golem-type.rb"
+        run: brew install --cask --no-quarantine dontoreve/golem/golem-type
 
       - name: Verify Golem.app landed in /Applications
         run: |
@@ -45,4 +50,4 @@ jobs:
 
       - name: Uninstall (cleanup)
         if: always()
-        run: brew uninstall --cask --force "$GITHUB_WORKSPACE/Casks/golem-type.rb" || true
+        run: brew uninstall --cask --force dontoreve/golem/golem-type || true
