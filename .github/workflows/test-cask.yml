@@ -1,0 +1,48 @@
+name: Test cask
+
+on:
+  push:
+    paths:
+      - "Casks/**"
+      - ".github/workflows/test-cask.yml"
+  pull_request:
+    paths:
+      - "Casks/**"
+  workflow_dispatch:
+  schedule:
+    # Mondays 12:00 UTC. Catches a future release whose DMG changed
+    # while this cask still points at an old version/sha256.
+    - cron: "0 12 * * 1"
+
+jobs:
+  install:
+    name: brew install (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            label: Apple Silicon
+          - os: macos-13
+            label: Intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Style + audit (informative)
+        continue-on-error: true
+        run: |
+          brew style "$GITHUB_WORKSPACE/Casks/golem-type.rb"
+          brew audit --cask --online "$GITHUB_WORKSPACE/Casks/golem-type.rb"
+
+      - name: Install the cask (downloads + mounts the DMG, copies the app)
+        run: brew install --cask --no-quarantine "$GITHUB_WORKSPACE/Casks/golem-type.rb"
+
+      - name: Verify Golem.app landed in /Applications
+        run: |
+          test -d "/Applications/Golem.app"
+          echo "OK: Golem.app installed on ${{ matrix.label }}"
+
+      - name: Uninstall (cleanup)
+        if: always()
+        run: brew uninstall --cask --force "$GITHUB_WORKSPACE/Casks/golem-type.rb" || true
